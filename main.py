@@ -7,6 +7,7 @@ Created on Sun Mar 10 15:29:00 2024
 
 import sys
 import numpy as np
+import copy
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPixmap, QImage
@@ -47,12 +48,13 @@ class MainWindow(QMainWindow):
         io_v_layout = QVBoxLayout()
         import_button = QPushButton("Import")
         import_button.clicked.connect(self.browse_image)
-        export_option = QComboBox()
-        export_option.addItems(["PNG", "JPG"])
-        export_option.setCurrentText("PNG")
+        #export_option = QComboBox()
+        #export_option.addItems(["PNG", "JPG"])
+        #export_option.setCurrentText("PNG")
         export_button = QPushButton("Export")
+        export_button.clicked.connect(self.save_image)
         io_v_layout.addWidget(import_button)
-        io_v_layout.addWidget(export_option)
+        #io_v_layout.addWidget(export_option)
         io_v_layout.addWidget(export_button)
         io_group.setLayout(io_v_layout)
 
@@ -64,6 +66,8 @@ class MainWindow(QMainWindow):
         old_image_v_layout = QVBoxLayout()
         self.old_image_pixmap = QLabel()
         self.old_image_size_label = QLabel()
+        self.old_image_dir_label = QLabel()
+        old_image_v_layout.addWidget(self.old_image_dir_label)
         old_image_v_layout.addWidget(self.old_image_pixmap)
         old_image_v_layout.addWidget(self.old_image_size_label)
         old_image_group.setLayout(old_image_v_layout)
@@ -72,6 +76,8 @@ class MainWindow(QMainWindow):
         new_image_v_layout = QVBoxLayout()
         self.new_image_pixmap = QLabel()
         self.new_image_size_label = QLabel()
+        self.new_image_dir_label = QLabel()
+        new_image_v_layout.addWidget(self.new_image_dir_label)
         new_image_v_layout.addWidget(self.new_image_pixmap)
         new_image_v_layout.addWidget(self.new_image_size_label)
         new_image_group.setLayout(new_image_v_layout)
@@ -95,6 +101,7 @@ class MainWindow(QMainWindow):
             self.orig_image = self.image_loader(self.orig_image_dir)
             self.set_pixmap_from_array(self.old_image_pixmap, self.orig_image)
             self.old_image_size_label.setText(f"Size: {self.orig_image.shape[1]} x {self.orig_image.shape[0]}")
+            self.old_image_dir_label.setText(f"{self.orig_image_dir}")
         elif open_file == "":
             pass
         else:
@@ -102,8 +109,11 @@ class MainWindow(QMainWindow):
 
     def save_image(self):
         save_file = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;PNG (*.png;*.PNG);;JPEG (*.jpg;*.JPG)")[0]
-        print(save_file)
         self.new_image_dir = save_file
+        image_to_save = copy.deepcopy(self.new_image)
+        image_to_save = image_to_save.astype(np.uint8)
+        image_to_save_pil = Image.fromarray(image_to_save)
+        image_to_save_pil.save(self.new_image_dir)
 
     def image_loader(self, image_dir):
         return np.array(Image.open(image_dir))
@@ -113,6 +123,7 @@ class MainWindow(QMainWindow):
             self.new_image = self.image_quick_resize(self.orig_image, str(self.quick_resize_option.currentText()))
             self.set_pixmap_from_array(self.new_image_pixmap, self.new_image)
             self.new_image_size_label.setText(f"Size: {self.new_image.shape[1]} x {self.new_image.shape[0]}")
+            #self.new_image_dir_label.setText(f"{self.new_image_dir}")
 
     def get_image_aspect_ratio(self, image_arr):
         image_ratio_orig_height = image_arr.shape[0]
