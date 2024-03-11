@@ -11,19 +11,31 @@ import copy
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        # Basic software information
+        self.VERSION = "0.3.0"
+        self.RELEASE_DATE = "11-Mar-2024"
+        self.COMPOSER = "NGPF"
 
         self.orig_image = None
         self.orig_image_dir = None
         self.new_image = None
         self.new_image_dir = None
 
-        self.setWindowTitle("IG POST RESIZER")
+        self.setWindowTitle(f"IG POST RESIZER - V.{self.VERSION}")
         self.setFixedSize(QSize(1200, 600))
+
+        # Status bar
+        self.base_status_bar = QStatusBar()
+        self.setStatusBar(self.base_status_bar)
+        status_base_info = QLabel()
+        status_base_info.setText(f"Version: {self.VERSION}    Release Date: {self.RELEASE_DATE}    Composer: {self.COMPOSER}")
+        self.base_status_bar.addPermanentWidget(status_base_info)
 
         base_widget = QWidget(self)
         self.setCentralWidget(base_widget)
@@ -33,14 +45,24 @@ class MainWindow(QMainWindow):
         function_v_widget.setFixedWidth(150)
         function_v_layout = QVBoxLayout()
 
+        # Resize option
+        # Initialize group & layout
         resize_group = QGroupBox("Resize")
         resize_v_layout = QVBoxLayout()
+        # Aspect ratio
         self.quick_resize_option = QComboBox()
         self.quick_resize_option.addItems(["", "Square (1:1)", "Landscape (1.91:1)", "Portrait (4:5)"])
         self.quick_resize_option.setCurrentText("")
+        # Padding color
+        self.padding_color_option = QComboBox()
+        self.padding_color_option.addItems(["Black", "White"])
+        self.padding_color_option.setCurrentText("Black")
+        # Convert & Preview
         convert_button = QPushButton("Convert")
         convert_button.clicked.connect(self.convert_to_new)
+        # Add widgets to layout
         resize_v_layout.addWidget(self.quick_resize_option)
+        resize_v_layout.addWidget(self.padding_color_option)
         resize_v_layout.addWidget(convert_button)
         resize_group.setLayout(resize_v_layout)
 
@@ -120,7 +142,7 @@ class MainWindow(QMainWindow):
 
     def convert_to_new(self):
         if self.orig_image is not None:
-            self.new_image = self.image_quick_resize(self.orig_image, str(self.quick_resize_option.currentText()))
+            self.new_image = self.image_quick_resize(self.orig_image, str(self.quick_resize_option.currentText()), str(self.padding_color_option.currentText()))
             self.set_pixmap_from_array(self.new_image_pixmap, self.new_image)
             self.new_image_size_label.setText(f"Size: {self.new_image.shape[1]} x {self.new_image.shape[0]}")
             #self.new_image_dir_label.setText(f"{self.new_image_dir}")
@@ -137,9 +159,20 @@ class MainWindow(QMainWindow):
         else:
             return
 
-    def image_quick_resize(self, image_arr, resize_option):
+    def image_quick_resize(self, image_arr, resize_option, padding_color):
         orig_image_ratio = self.get_image_aspect_ratio(image_arr)
         orig_image_shape = image_arr.shape
+
+        # Padding color
+        padding_color_value = None
+        if padding_color == "Black":
+            padding_color_value = 0
+        elif padding_color == "White":
+            padding_color_value = 255.0
+        else:
+            padding_color_value = 0
+
+        # Aspect ratio
         new_image_ratio = None
         if resize_option == "Square (1:1)":
             new_image_ratio = (1.0, 1.0)
@@ -158,18 +191,21 @@ class MainWindow(QMainWindow):
         # if the original ratio is already as expected, return the original image
         if new_h_v_ratio == original_h_v_ratio:
             return image_arr
+
         # The new ratio should be wider than original --> Add padding horizontally
         elif new_h_v_ratio > original_h_v_ratio:
             new_width_half = round((round(orig_image_shape[1] * modify_ratio) - orig_image_shape[1]) / 2)
             npad = ((0, 0), (new_width_half, new_width_half), (0, 0))
-            new_image_arr = np.pad(image_arr, npad, mode='constant', constant_values=0)
+            new_image_arr = np.pad(image_arr, npad, mode='constant', constant_values=padding_color_value)
             return new_image_arr
+
         # The new image should be taller than original --> Add padding vertically
         elif original_h_v_ratio > new_h_v_ratio:
             new_height_half = round((round(orig_image_shape[0] / modify_ratio) - orig_image_shape[0]) / 2)
             npad = ((new_height_half, new_height_half), (0, 0), (0, 0))
-            new_image_arr = np.pad(image_arr, npad, mode='constant', constant_values=0)
+            new_image_arr = np.pad(image_arr, npad, mode='constant', constant_values=padding_color_value)
             return new_image_arr
+
         else:
             return
 
